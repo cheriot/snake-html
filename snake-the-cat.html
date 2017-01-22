@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+  <meta charset="UTF-8">
+
+  <!--
+    Self-imposed challenge:
+      1. Vanilla js, html, and css without libraries or dependencies.
+      2. Self-contained html file. Attach it to an email or play without internet.
+  -->
+
+  <style type="text/css">
+    .page {
+      display: flex;
+      width: 500px;
+      height: 98vh; /* 100vh is tall enough to add a scroll bar in both FF and Chrome */
+      margin: auto;
+      flex-direction: column;
+      justify-content: center;
+      font-family: sans-serif;
+    }
+    #game-board td {
+      width: 20px;
+      height: 20px;
+      background-color: #ccc;
+    }
+    #game-board .food {
+      background-color: red;
+    }
+    #game-board .snake {
+      background-color: black;
+    }
+    #game-board .dead {
+      background-color: darkgray;
+    }
+  </style>
+
+</head>
+<body>
+  <div class="page">
+
+    <table id="game-board"></table>
+
+    <script type="text/javascript">
+      // The game board length and width. Odd so there's a center tile.
+      const SQUARE_LENGTH = 21;
+
+      class GameBoard {
+        constructor(squareLength) {
+          // Construct the game board and hang on to tile references for updating state later.
+          this.tiles = new Array(squareLength);
+          this.table = document.getElementById('game-board');
+          for(let ri=0; ri < this.tiles.length; ri++) {
+            const tr = document.createElement('tr');
+            this.table.appendChild(tr);
+            this.tiles[ri] = new Array(squareLength);
+            for(let ci=0; ci < this.tiles[ri].length; ci++) {
+              const td = document.createElement('td');
+              td.classList.add('default');
+              td.dataset.row = ri;
+              td.dataset.col = ci;
+              tr.appendChild(td);
+              this.tiles[ri][ci] = td;
+            }
+          }
+        }
+
+        getLength() {
+          return this.tiles.length;
+        }
+
+        getRandomUnoccupiedTile() {
+          const options = this.table.querySelectorAll('.default');
+          const tile = options[Math.floor(Math.random() * (options.length + 1))];
+          return [parseInt(tile.dataset.row, 10), parseInt(tile.dataset.col, 10)];
+        }
+
+        setFoodTile(row, col) {
+          this.tiles[row][col].className = 'food';
+        }
+
+        setSnakeTile(row, col) {
+          this.tiles[row][col].className = 'snake';
+        }
+
+        setDefaultTile(row, col) {
+          this.tiles[row][col].className = 'default';
+        }
+
+        setDeadTile(row, col) {
+          this.tiles[row][col].className = 'dead';
+        }
+      }
+
+      class Game {
+        constructor(gameBoard) {
+          this.gameBoard = gameBoard;
+          this.snake = [];
+
+          // Set the snake's starting tile.
+          // On an board with odd length, this will pick the middle.
+          const middle = Math.floor(this.gameBoard.getLength() / 2);
+          this.snake.push([middle,middle]);
+          this.gameBoard.setSnakeTile(middle, middle);
+
+          // Set the initial food tile.
+          this.dropFood();
+        }
+
+        tick() {
+          // Simulate movement by adding a snake tile in the current
+          // direction and removing one from the tail.
+          const head = this.snake[0];
+          const tail = this.snake[this.snake.length-1];
+          const next = [
+            this.wrap(head[0] + this.rowIncrement),
+            this.wrap(head[1] + this.colIncrement)
+          ];
+          
+          // Detect death
+          const alive = this.snake.every((tile) => !this.equalTiles(tile, next));
+          if(alive) {
+            this.snake.unshift(next);
+            this.gameBoard.setSnakeTile(...next);
+            if(this.equalTiles(this.food, next)) {
+              // eating so grow instead of moving and drop the next food
+              this.dropFood();
+            } else {
+              this.snake.pop();
+              this.gameBoard.setDefaultTile(...tail);
+            }
+          } else {
+            if(this.onDeathHandler) this.onDeathHandler();
+            this.snake.forEach((tile) => this.gameBoard.setDeadTile(...tile));
+          }
+
+        }
+
+        equalTiles(a, b) {
+          return a[0] === b[0] && a[1] === b[1];
+        }
+
+        dropFood() {
+          this.food = this.gameBoard.getRandomUnoccupiedTile();
+          this.gameBoard.setFoodTile(...this.food);
+        }
+
+        wrap(i) {
+          // If the index is out of bounds, wrap it to the other side.
+          if(i < 0) return this.gameBoard.getLength()-1;
+          if(i >= this.gameBoard.getLength()) return 0;
+          return i;
+        }
+
+        setOnDeathHandler(handler) {
+          this.onDeathHandler = handler;
+        }
+
+        up() {
+          this.rowIncrement = -1;
+          this.colIncrement = 0;
+        }
+
+        left() {
+          this.rowIncrement = 0;
+          this.colIncrement = -1;
+        }
+
+        right() {
+          this.rowIncrement = 0;
+          this.colIncrement = 1;
+        }
+
+        down() {
+          this.rowIncrement = 1;
+          this.colIncrement = 0;
+        }
+      }
+
+      class Controls {
+        constructor(game) {
+          this.game = game;
+          this.started = false;
+          this.done = false;
+          document.addEventListener('keydown', (event) => {
+            if(event.key && event.key.startsWith('Arrow')) {
+              this.game[event.key.slice(5).toLowerCase()]();
+              if(!this.started) {
+                this.started = true;
+                this.startTimer();
+              }
+            }
+          });
+
+          this.game.setOnDeathHandler(() => {
+            this.done = true;
+          });
+        }
+
+        startTimer() {
+          // setInterval may trigger again before processing is done.
+          // Use setTimeout instead.
+          const tick = () => {
+            this.game.tick();
+            if(!this.done) setTimeout(tick, 300);
+          }
+          tick();
+        }
+      }
+
+      const gameBoard = new GameBoard(SQUARE_LENGTH);
+      const game = new Game(gameBoard);
+      const controls = new Controls(game);
+    </script>
+  </div>
+</body>
+</html>
