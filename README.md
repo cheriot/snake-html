@@ -8,8 +8,11 @@ Dom interaction has been isolated to the GameBoard object. Input and timers are 
 
 Browser tested in Chrome 57.0.2950.4 dev and Firefox Developer Edition 52.0a2.
 
-## Build
+### Usage
+Press an arrow key to begin. Ctrl+R to start over.
+
+### Run
 Open the html file.
 
-## Usage
-Press an arrow key to begin. Ctrl+R to start over.
+### Build
+rm cheriot-snake.zip; mkdir cheriot-snake; cp snake.html README.md cheriot-snake/; zip -r cheriot-snake.zip cheriot-snake/; rm -rf cheriot-snake
